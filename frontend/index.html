@@ -168,7 +168,7 @@
         console.log("Subscription:", subscription);
 
         // Hier wird die Subscription an deinen lokalen Server geschickt:
-        fetch("http://localhost:3000/subscribe", {
+        fetch("https://reaktionsspiel-server.onrender.com/subscribe", {
           method: "POST",
           body: JSON.stringify(subscription),
           headers: {

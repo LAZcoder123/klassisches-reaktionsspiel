@@ -26,19 +26,10 @@ self.addEventListener('fetch', event => {
 
 self.addEventListener('push', event => {
   const data = event.data ? event.data.json() : {};
-  self.registration.showNotification(data.title || 'Hallo!', {
+  const title = data.title || 'Benachrichtigung';
+  const options = {
     body: data.body || 'Neue Nachricht',
     icon: 'icon.png'
-  });
-});
-
-self.addEventListener('push', function(event) {
-  const data = event.data?.json() || {};
-
-  const title = data.title || "Benachrichtigung";
-  const options = {
-    body: data.body || "Das ist eine Beispielnachricht.",
-    icon: "icon.png"
   };
 
   event.waitUntil(
