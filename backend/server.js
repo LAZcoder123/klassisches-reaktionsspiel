@@ -5,23 +5,20 @@ const cors = require("cors");
 
 const app = express();
 
-// Logging Middleware: Loggt jede eingehende Anfrage
-app.use((req, res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
-  next();
-});
-
-// CORS Middleware ganz oben
+// 1. CORS Middleware ganz oben, vor allen Routen
 app.use(cors({
   origin: "https://klassisches-reaktionsspiel.netlify.app",
   methods: ["GET", "POST", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
 }));
-app.options('*', cors());
 
-// Express JSON parser
+// 2. OPTIONS-Preflight für alle Pfade erlauben
+app.options("*", cors());
+
+// 3. Express JSON parser
 app.use(express.json());
 
-// Statische Dateien
+// 4. Statische Dateien (optional, falls du Frontend hier bedienst)
 app.use(express.static(path.join(__dirname, "frontend")));
 
 webpush.setVapidDetails(
@@ -31,35 +28,24 @@ webpush.setVapidDetails(
 );
 
 const messages = [
-  "Zeit für eine neue Reaktion! 🚀",
-  "Bist du schneller geworden? ⏱️",
-  "Mach eine Pause... oder reagiere schneller! 😄",
-  "Push dich selbst! 🔔",
-  "Versuch Nr. 42? Vielleicht klappt’s! 💪",
-  "Wach bleiben! Noch einmal tippen! ☕",
-  "Du bist dran! 🔥",
-  "Schon 1 Stunde vorbei... Teste dich nochmal! ⌛",
-  "Dein Reaktionsspiel wartet. 👀",
-  "Bereit für deinen nächsten Highscore? 🏆"
+  // ... deine Nachrichten ...
 ];
 
 function getRandomMessage() {
   return messages[Math.floor(Math.random() * messages.length)];
 }
 
-// Push-Handler
 app.post("/subscribe", (req, res) => {
   const subscription = req.body;
-  console.log("Neue Subscription erhalten:", subscription);
 
   const payload = JSON.stringify({
     title: "Willkommen zurück!",
     body: getRandomMessage(),
   });
 
-  webpush.sendNotification(subscription, payload)
-    .then(() => console.log("Sofortnachricht erfolgreich gesendet"))
-    .catch(err => console.error("Fehler bei Sofortnachricht:", err));
+  webpush.sendNotification(subscription, payload).catch(err => {
+    console.error("Fehler bei Sofortnachricht:", err);
+  });
 
   setTimeout(() => {
     const delayedPayload = JSON.stringify({
@@ -67,9 +53,9 @@ app.post("/subscribe", (req, res) => {
       body: getRandomMessage(),
     });
 
-    webpush.sendNotification(subscription, delayedPayload)
-      .then(() => console.log("Spätere Nachricht erfolgreich gesendet"))
-      .catch(err => console.error("Fehler bei späterer Nachricht:", err));
+    webpush.sendNotification(subscription, delayedPayload).catch(err => {
+      console.error("Fehler bei späterer Nachricht:", err);
+    });
   }, 3600000);
 
   res.status(201).json({ message: "Benachrichtigungen geplant." });
