@@ -5,18 +5,23 @@ const cors = require("cors");
 
 const app = express();
 
-// 1. CORS Middleware ganz oben, vor allem anderen
+// Logging Middleware: Loggt jede eingehende Anfrage
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  next();
+});
+
+// CORS Middleware ganz oben
 app.use(cors({
   origin: "https://klassisches-reaktionsspiel.netlify.app",
-  methods: ["GET", "POST", "OPTIONS"],   // Wichtig: OPTIONS erlauben
+  methods: ["GET", "POST", "OPTIONS"],
 }));
 app.options('*', cors());
 
-
-// 2. Express JSON parser
+// Express JSON parser
 app.use(express.json());
 
-// 3. Statische Dateien
+// Statische Dateien
 app.use(express.static(path.join(__dirname, "frontend")));
 
 webpush.setVapidDetails(
@@ -45,15 +50,16 @@ function getRandomMessage() {
 // Push-Handler
 app.post("/subscribe", (req, res) => {
   const subscription = req.body;
+  console.log("Neue Subscription erhalten:", subscription);
 
   const payload = JSON.stringify({
     title: "Willkommen zurück!",
     body: getRandomMessage(),
   });
 
-  webpush.sendNotification(subscription, payload).catch(err => {
-    console.error("Fehler bei Sofortnachricht:", err);
-  });
+  webpush.sendNotification(subscription, payload)
+    .then(() => console.log("Sofortnachricht erfolgreich gesendet"))
+    .catch(err => console.error("Fehler bei Sofortnachricht:", err));
 
   setTimeout(() => {
     const delayedPayload = JSON.stringify({
@@ -61,9 +67,9 @@ app.post("/subscribe", (req, res) => {
       body: getRandomMessage(),
     });
 
-    webpush.sendNotification(subscription, delayedPayload).catch(err => {
-      console.error("Fehler bei späterer Nachricht:", err);
-    });
+    webpush.sendNotification(subscription, delayedPayload)
+      .then(() => console.log("Spätere Nachricht erfolgreich gesendet"))
+      .catch(err => console.error("Fehler bei späterer Nachricht:", err));
   }, 3600000);
 
   res.status(201).json({ message: "Benachrichtigungen geplant." });
