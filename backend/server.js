@@ -10,6 +10,8 @@ app.use(cors({
   origin: "https://klassisches-reaktionsspiel.netlify.app",
   methods: ["GET", "POST", "OPTIONS"],   // Wichtig: OPTIONS erlauben
 }));
+app.options('*', cors());
+
 
 // 2. Express JSON parser
 app.use(express.json());
