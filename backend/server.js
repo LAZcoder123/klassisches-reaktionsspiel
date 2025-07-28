@@ -5,8 +5,15 @@ const cors = require("cors");
 const app = express();
 
 app.use(cors({
-  origin: "https://klassisches-reaktionsspiel.netlify.app"
+  origin: function(origin, callback) {
+    if (!origin || origin === "https://klassisches-reaktionsspiel.netlify.app") {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  }
 }));
+
 
 
 
@@ -66,6 +73,8 @@ app.post("/subscribe", (req, res) => {
   res.status(201).json({ message: "Benachrichtigungen geplant." });
 });
 
-app.listen(3000, () => {
-  console.log("✅ Server läuft auf http://localhost:3000");
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`✅ Server läuft auf Port ${PORT}`);
 });
+
