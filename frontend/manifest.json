@@ -1,7 +1,8 @@
 {
   "name": "Reaktionsspiel",
-  "short_name": "Reaktionsspiel",
+  "short_name": "Reaktion",
   "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#b80000",
   "theme_color": "#b80000",
@@ -15,6 +16,12 @@
       "src": "icon.png",
       "sizes": "512x512",
       "type": "image/png"
+    },
+    {
+      "src": "apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
     }
   ]
 }
