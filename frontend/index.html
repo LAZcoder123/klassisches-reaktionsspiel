@@ -9,36 +9,39 @@
     <link rel="apple-touch-icon" href="apple-touch-icon.png" />
 
     <style>
-      /* Basis Styles */
-      html, body {
+      html,
+      body {
         margin: 0;
         padding: 0;
         height: 100%;
         font-family: sans-serif;
-        cursor: pointer;
+        -webkit-user-select: none; /* Für Safari & iOS */
+        user-select: none;
         text-align: center;
-        transition: background-color 0.5s, color 0.5s;
+        cursor: pointer;
+        transition: background-color 0.5s;
       }
-
       body {
         display: flex;
         flex-direction: column;
         justify-content: center;
         align-items: center;
-        background-color: rgb(184, 0, 0);
+        background-color: #b80000; /* Startfarbe */
         color: white;
         padding: 1rem;
       }
-
-      h1.headline {
+      body.dark {
+        background-color: #330000;
+        color: #ddd;
+      }
+      h1 {
         font-size: 1.6rem;
         margin: 0.5rem 0;
       }
-
       p {
         font-size: 1.2rem;
+        margin: 0.3rem 0;
       }
-
       #restartButton {
         display: none;
         margin-top: 20px;
@@ -50,209 +53,166 @@
         color: black;
         cursor: pointer;
       }
-
       #restartButton:hover {
         background-color: #eee;
       }
-
       #message.animate {
         animation: pulse 0.6s ease;
       }
-
       @keyframes pulse {
-        0% { transform: scale(1); }
-        50% { transform: scale(1.4); }
-        100% { transform: scale(1); }
+        0% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.4);
+        }
+        100% {
+          transform: scale(1);
+        }
       }
-
       #highscore {
         font-size: 16px;
         color: #ddd;
         margin-top: 10px;
       }
-
-      /* Startscreen */
-      #startScreen {
-        position: fixed;
-        top: 0; left: 0; right: 0; bottom: 0;
-        background-color: #b80000;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        color: white;
-        font-size: 1.5rem;
-        z-index: 1000;
-        cursor: pointer;
-      }
-
-      /* Dark Mode */
-      @media (prefers-color-scheme: dark) {
-        body {
-          background-color: #440000;
-          color: #eee;
-        }
-        #restartButton {
-          background-color: #333;
-          color: #eee;
-        }
-        #restartButton:hover {
-          background-color: #555;
-        }
-        #highscore {
-          color: #aaa;
-        }
-        #startScreen {
-          background-color: #440000;
-        }
-      }
     </style>
   </head>
   <body id="background">
-    <div id="startScreen">Tippe zum Starten!</div>
-
-    <h1 class="headline">Klicke sobald der Bildschirm seine Farbe ändert!</h1>
-    <p id="message"></p>
+    <h1>Klassisches Reaktionsspiel</h1>
+    <p id="message">Tippe zum Starten</p>
     <p id="highscore"></p>
-    <button id="restartButton" onclick="location.reload()">Neu starten</button>
+    <button id="restartButton">Neu starten</button>
 
-    <!-- Beep-Ton -->
     <audio id="beepSound" src="beep.mp3" preload="auto"></audio>
 
     <script>
-      let startTime;
-      let isGreen = false;
-      let clicked = false;
-      let timeoutID;
-
       const background = document.getElementById("background");
       const message = document.getElementById("message");
       const restartButton = document.getElementById("restartButton");
       const highscoreDisplay = document.getElementById("highscore");
       const beepSound = document.getElementById("beepSound");
-      const startScreen = document.getElementById("startScreen");
 
+      let startTime = 0;
+      let isGreen = false;
+      let gameStarted = false;
+      let clicked = false;
+      let timeoutID = null;
+      let firstStart = true;
+
+      // Highscore laden
       let bestTime = localStorage.getItem("highscore");
       if (bestTime !== null) {
         let bestTimeSeconds = (parseFloat(bestTime) / 1000).toFixed(3);
         highscoreDisplay.innerText = `Bester Versuch: ${bestTimeSeconds} Sekunden`;
       }
 
-      function changeBackground() {
-        let min = 3;
-        let max = 6;
-        let rndmTime = Math.floor(Math.random() * (max - min + 1) + min);
-        let delay = rndmTime * 1000;
+      // Dark Mode erkennen und setzen
+      function setDarkMode() {
+        if (
+          window.matchMedia &&
+          window.matchMedia("(prefers-color-scheme: dark)").matches
+        ) {
+          document.body.classList.add("dark");
+        } else {
+          document.body.classList.remove("dark");
+        }
+      }
+      setDarkMode();
+      window
+        .matchMedia("(prefers-color-scheme: dark)")
+        .addEventListener("change", setDarkMode);
+
+      function startGame() {
+        if (gameStarted) return;
+        gameStarted = true;
+        clicked = false;
+        isGreen = false;
+
+        message.innerText = "Warte auf Grün...";
+        background.style.backgroundColor = "#b80000";
+        restartButton.style.display = "none";
+
+        startTimer();
+        firstStart = false; // Nur einmaliger Startbildschirm
+      }
+
+      // Timer bis grün wird
+      function startTimer() {
+        const min = 3;
+        const max = 6;
+        const delay =
+          (Math.floor(Math.random() * (max - min + 1)) + min) * 1000;
 
         timeoutID = setTimeout(() => {
-          if (!clicked) {
-            background.style.backgroundColor = "green";
-            beepSound.play();
-            startTime = Date.now();
-            isGreen = true;
-            message.innerText = "JETZT klicken!";
-          }
+          background.style.backgroundColor = "green";
+          beepSound.play();
+          startTime = Date.now();
+          isGreen = true;
+          message.innerText = "JETZT klicken!";
         }, delay);
       }
 
-      function measureTime() {
-        if (clicked) return;
+      // Klick auswerten
+      function handleClick() {
+        if (!gameStarted) {
+          startGame();
+          return;
+        }
+
+        if (clicked) return; // mehrfaches Klicken ignorieren
+
         clicked = true;
 
         if (!isGreen) {
-          message.innerText = "Zu früh! Neu starten, um es erneut zu versuchen.";
+          // Zu früh geklickt
+          message.innerText =
+            "Zu früh! Neu starten, um es erneut zu versuchen.";
           background.style.backgroundColor = "gray";
           clearTimeout(timeoutID);
           restartButton.style.display = "inline-block";
           return;
         }
 
-        let reactionTime = Date.now() - startTime;
-        let reactionInSeconds = (reactionTime / 1000).toFixed(3);
+        // Reaktionszeit messen
+        const reactionTime = Date.now() - startTime;
+        const reactionInSeconds = (reactionTime / 1000).toFixed(3);
         message.innerText = `Reaktionszeit: ${reactionInSeconds} Sekunden`;
         message.classList.add("animate");
 
         if (bestTime === null || reactionTime < bestTime) {
           localStorage.setItem("highscore", reactionTime);
+          bestTime = reactionTime;
           highscoreDisplay.innerText = `🏆 Neuer Highscore: ${reactionInSeconds} Sekunden!`;
         }
 
         restartButton.style.display = "inline-block";
       }
 
-      // Startscreen Klick startet das Spiel
-      startScreen.addEventListener("click", () => {
-        startScreen.style.display = "none";
-        message.innerText = "Bereit?";
-        changeBackground();
-        document.addEventListener("click", measureTime);
-      });
+      // Spiel neu starten
+      function restartGame(event) {
+        event.stopPropagation();
+        clearTimeout(timeoutID);
+        gameStarted = false;
+        clicked = false;
+        isGreen = false;
+        message.classList.remove("animate");
+        restartButton.style.display = "none";
+        background.style.backgroundColor = "#b80000";
 
-      // Service Worker Registrierung und Update-Handling
-      if ("serviceWorker" in navigator) {
-        window.addEventListener("load", () => {
-          navigator.serviceWorker.register("service-worker.js").then(registration => {
-            console.log("Service Worker registriert:", registration);
-
-            registration.onupdatefound = () => {
-              const newWorker = registration.installing;
-              newWorker.onstatechange = () => {
-                if (newWorker.state === "installed") {
-                  if (navigator.serviceWorker.controller) {
-                    console.log("Neue Version verfügbar, Seite wird neu geladen");
-                    window.location.reload();
-                  }
-                }
-              };
-            };
-          }).catch(error => {
-            console.error("Service Worker Registrierung fehlgeschlagen:", error);
-          });
-        });
-      }
-
-      // Push Notifications Subscription (dein Public Vapid Key)
-      const publicVapidKey = "BOxnFFyTXl1SPNdGicE-mr66IbGzWhylvOHA-xuxP4VaKdC-f12SS_N25YqUtfKY2N_nxxCyYUtdhRvNdfIwwls";
-
-      if ("serviceWorker" in navigator && "PushManager" in window) {
-        navigator.serviceWorker.ready
-          .then(registration => registration.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: urlBase64ToUint8Array(publicVapidKey)
-          }))
-          .then(subscription => {
-            console.log("Subscription:", subscription);
-
-            fetch("https://reaktionsspiel-server.onrender.com/subscribe", {
-              method: "POST",
-              body: JSON.stringify(subscription),
-              headers: {
-                "Content-Type": "application/json",
-              },
-            });
-          });
-      }
-
-      function urlBase64ToUint8Array(base64String) {
-        const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-        const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
-        const rawData = window.atob(base64);
-        const outputArray = new Uint8Array(rawData.length);
-        for (let i = 0; i < rawData.length; ++i) {
-          outputArray[i] = rawData.charCodeAt(i);
+        // Ladebildschirm überspringen ab dem zweiten Start
+        if (!firstStart) {
+          message.innerText = "Warte auf Grün...";
+          startGame();
+        } else {
+          message.innerText = "Tippe zum Starten";
         }
-        return outputArray;
       }
 
-      if ("Notification" in window && navigator.serviceWorker) {
-        Notification.requestPermission().then(permission => {
-          if (permission === "granted") {
-            console.log("Benachrichtigungen erlaubt");
-          } else {
-            console.log("Benachrichtigungen blockiert");
-          }
-        });
-      }
+      // Eventlistener setzen
+      window.onload = () => {
+        document.addEventListener("click", handleClick);
+        restartButton.addEventListener("click", restartGame);
+      };
     </script>
   </body>
 </html>
