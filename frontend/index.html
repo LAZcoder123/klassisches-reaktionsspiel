@@ -5,27 +5,19 @@
     <link rel="manifest" href="manifest.json" />
     <meta name="theme-color" content="#b80000" />
     <title>Klassisches Reaktionsspiel</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="apple-touch-icon" href="apple-touch-icon.png" />
 
     <style>
-      /* Startscreen-Stil */
-      #startscreen {
-        position: fixed;
-        top: 0; left: 0; right: 0; bottom: 0;
-        background-color: #b80000;
-        color: white;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        font-size: 5vw;
-        z-index: 9999;
-      }
-
+      /* Basis Styles */
       html, body {
         margin: 0;
         padding: 0;
         height: 100%;
+        font-family: sans-serif;
+        cursor: pointer;
+        text-align: center;
+        transition: background-color 0.5s, color 0.5s;
       }
 
       body {
@@ -34,15 +26,11 @@
         justify-content: center;
         align-items: center;
         background-color: rgb(184, 0, 0);
-        font-family: sans-serif;
-        cursor: pointer;
-        transition: background-color 0.5s;
-        text-align: center;
-        padding: 1rem;
         color: white;
+        padding: 1rem;
       }
 
-      h1 {
+      h1.headline {
         font-size: 1.6rem;
         margin: 0.5rem 0;
       }
@@ -61,7 +49,6 @@
         background-color: white;
         color: black;
         cursor: pointer;
-        transition: background-color 0.3s;
       }
 
       #restartButton:hover {
@@ -84,36 +71,48 @@
         margin-top: 10px;
       }
 
-      /* Dunkelmodus */
+      /* Startscreen */
+      #startScreen {
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background-color: #b80000;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        color: white;
+        font-size: 1.5rem;
+        z-index: 1000;
+        cursor: pointer;
+      }
+
+      /* Dark Mode */
       @media (prefers-color-scheme: dark) {
-        #startscreen {
-          background-color: #550000;
-        }
         body {
-          background-color: #330000;
-          color: #ddd;
-        }
-        h1, p, #highscore {
+          background-color: #440000;
           color: #eee;
         }
         #restartButton {
-          background-color: #555;
-          color: white;
+          background-color: #333;
+          color: #eee;
         }
         #restartButton:hover {
-          background-color: #777;
+          background-color: #555;
         }
-        #message {
-          color: #eee;
+        #highscore {
+          color: #aaa;
+        }
+        #startScreen {
+          background-color: #440000;
         }
       }
     </style>
   </head>
   <body id="background">
-    <div id="startscreen">Lade Reaktionsspiel...</div>
+    <div id="startScreen">Tippe zum Starten!</div>
 
     <h1 class="headline">Klicke sobald der Bildschirm seine Farbe ändert!</h1>
-    <p id="message">Bereit?</p>
+    <p id="message"></p>
     <p id="highscore"></p>
     <button id="restartButton" onclick="location.reload()">Neu starten</button>
 
@@ -131,7 +130,7 @@
       const restartButton = document.getElementById("restartButton");
       const highscoreDisplay = document.getElementById("highscore");
       const beepSound = document.getElementById("beepSound");
-      const startScreen = document.getElementById("startscreen");
+      const startScreen = document.getElementById("startScreen");
 
       let bestTime = localStorage.getItem("highscore");
       if (bestTime !== null) {
@@ -181,44 +180,49 @@
         restartButton.style.display = "inline-block";
       }
 
-      window.onload = () => {
+      // Startscreen Klick startet das Spiel
+      startScreen.addEventListener("click", () => {
+        startScreen.style.display = "none";
+        message.innerText = "Bereit?";
         changeBackground();
         document.addEventListener("click", measureTime);
+      });
 
-        // Startscreen nach 2 Sekunden ausblenden
-        setTimeout(() => {
-          startScreen.style.display = "none";
-        }, 2000);
-      };
-
+      // Service Worker Registrierung und Update-Handling
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
-          navigator.serviceWorker
-            .register("service-worker.js")
-            .then((registration) => {
-              console.log("Service Worker registriert:", registration);
-            })
-            .catch((error) => {
-              console.error("Service Worker Registrierung fehlgeschlagen:", error);
-            });
+          navigator.serviceWorker.register("service-worker.js").then(registration => {
+            console.log("Service Worker registriert:", registration);
+
+            registration.onupdatefound = () => {
+              const newWorker = registration.installing;
+              newWorker.onstatechange = () => {
+                if (newWorker.state === "installed") {
+                  if (navigator.serviceWorker.controller) {
+                    console.log("Neue Version verfügbar, Seite wird neu geladen");
+                    window.location.reload();
+                  }
+                }
+              };
+            };
+          }).catch(error => {
+            console.error("Service Worker Registrierung fehlgeschlagen:", error);
+          });
         });
       }
 
-      // Public VAPID Key
+      // Push Notifications Subscription (dein Public Vapid Key)
       const publicVapidKey = "BOxnFFyTXl1SPNdGicE-mr66IbGzWhylvOHA-xuxP4VaKdC-f12SS_N25YqUtfKY2N_nxxCyYUtdhRvNdfIwwls";
 
       if ("serviceWorker" in navigator && "PushManager" in window) {
         navigator.serviceWorker.ready
-          .then((registration) => {
-            return registration.pushManager.subscribe({
-              userVisibleOnly: true,
-              applicationServerKey: urlBase64ToUint8Array(publicVapidKey),
-            });
-          })
-          .then((subscription) => {
+          .then(registration => registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(publicVapidKey)
+          }))
+          .then(subscription => {
             console.log("Subscription:", subscription);
 
-            // Subscription an den Server senden:
             fetch("https://reaktionsspiel-server.onrender.com/subscribe", {
               method: "POST",
               body: JSON.stringify(subscription),
@@ -231,9 +235,7 @@
 
       function urlBase64ToUint8Array(base64String) {
         const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-        const base64 = (base64String + padding)
-          .replace(/-/g, "+")
-          .replace(/_/g, "/");
+        const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
         const rawData = window.atob(base64);
         const outputArray = new Uint8Array(rawData.length);
         for (let i = 0; i < rawData.length; ++i) {
@@ -243,7 +245,7 @@
       }
 
       if ("Notification" in window && navigator.serviceWorker) {
-        Notification.requestPermission().then((permission) => {
+        Notification.requestPermission().then(permission => {
           if (permission === "granted") {
             console.log("Benachrichtigungen erlaubt");
           } else {

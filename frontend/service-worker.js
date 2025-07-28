@@ -9,73 +9,47 @@ const filesToCache = [
   './beep.mp3'
 ];
 
-// Install - Dateien cachen mit Fehlerbehandlung
+// Beim Installieren cachen
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(cacheName)
-      .then(cache => cache.addAll(filesToCache))
-      .catch(err => console.error('Fehler beim Cachen:', err))
+    caches.open(cacheName).then(cache => cache.addAll(filesToCache))
   );
-  self.skipWaiting();
+  self.skipWaiting(); // Direkt aktivieren
 });
 
-// Activate - alte Caches löschen
+// Alte Caches löschen beim Aktivieren
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys =>
-      Promise.all(
-        keys.filter(key => key !== cacheName).map(key => caches.delete(key))
-      )
+      Promise.all(keys.filter(key => key !== cacheName).map(key => caches.delete(key)))
     )
   );
-  self.clients.claim();
+  self.clients.claim(); // Sofort Kontrolle übernehmen
 });
 
-// Fetch - Cache-first Strategie mit Netzwerkfallback
+// Netzwerkanfragen abfangen
 self.addEventListener('fetch', event => {
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      caches.match('./index.html').then(response => {
-        return response || fetch(event.request).catch(() => caches.match('./index.html'));
-      })
+      caches.match('./index.html').then(response => response || fetch(event.request))
     );
   } else {
     event.respondWith(
-      caches.match(event.request).then(response => {
-        return response || fetch(event.request);
-      })
+      caches.match(event.request).then(response => response || fetch(event.request))
     );
   }
 });
 
-// Push Notifications mit erweiterten Optionen
+// Push-Nachrichten anzeigen
 self.addEventListener('push', event => {
   const data = event.data ? event.data.json() : {};
   const title = data.title || 'Benachrichtigung';
   const options = {
     body: data.body || 'Neue Nachricht',
-    icon: 'icon.png',
-    badge: 'icon.png',             // kleines Icon für Statusleiste
-    vibrate: [100, 50, 100],      // Vibrationsmuster
-    tag: 'reaktionsspiel-push',   // zum Zusammenfassen ähnlicher Notifs
-    renotify: true,               // erneutes Benachrichtigen bei gleichem Tag
-    actions: [                    // Action-Buttons (optional)
-      {action: 'open', title: 'Öffnen'},
-      {action: 'dismiss', title: 'Schließen'}
-    ]
+    icon: 'icon.png'
   };
 
   event.waitUntil(
     self.registration.showNotification(title, options)
   );
-});
-
-// Optional: Notification Click Event (z.B. um die App zu öffnen)
-self.addEventListener('notificationclick', event => {
-  event.notification.close();
-  if (event.action === 'open') {
-    event.waitUntil(
-      clients.openWindow('/')  // öffnet deine App-Seite
-    );
-  }
 });
