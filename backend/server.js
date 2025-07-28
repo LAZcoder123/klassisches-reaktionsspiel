@@ -2,23 +2,20 @@ const express = require("express");
 const path = require("path");
 const webpush = require("web-push");
 const cors = require("cors");
+
 const app = express();
 
+// 1. CORS Middleware ganz oben, vor allem anderen
 app.use(cors({
-  origin: function(origin, callback) {
-    if (!origin || origin === "https://klassisches-reaktionsspiel.netlify.app") {
-      callback(null, true);
-    } else {
-      callback(new Error("Not allowed by CORS"));
-    }
-  }
+  origin: "https://klassisches-reaktionsspiel.netlify.app",
+  methods: ["GET", "POST", "OPTIONS"],   // Wichtig: OPTIONS erlauben
 }));
 
-
-
-
-app.use(express.static(path.join(__dirname, "frontend")));
+// 2. Express JSON parser
 app.use(express.json());
+
+// 3. Statische Dateien
+app.use(express.static(path.join(__dirname, "frontend")));
 
 webpush.setVapidDetails(
   "mailto:louisz1@gmx.de",
@@ -40,35 +37,32 @@ const messages = [
 ];
 
 function getRandomMessage() {
-  const index = Math.floor(Math.random() * messages.length);
-  return messages[index];
+  return messages[Math.floor(Math.random() * messages.length)];
 }
 
-// 📨 Push-Handler
+// Push-Handler
 app.post("/subscribe", (req, res) => {
   const subscription = req.body;
 
-  // ✅ Sofortige Nachricht beim ersten Laden
   const payload = JSON.stringify({
     title: "Willkommen zurück!",
     body: getRandomMessage(),
   });
 
-  webpush
-    .sendNotification(subscription, payload)
-    .catch(err => console.error("Fehler bei Sofortnachricht:", err));
+  webpush.sendNotification(subscription, payload).catch(err => {
+    console.error("Fehler bei Sofortnachricht:", err);
+  });
 
-  // ⏱ Nachricht nach 1 Stunde (3600000 ms)
   setTimeout(() => {
     const delayedPayload = JSON.stringify({
       title: "Hey, Lust auf eine neue Runde?",
       body: getRandomMessage(),
     });
 
-    webpush
-      .sendNotification(subscription, delayedPayload)
-      .catch(err => console.error("Fehler bei späterer Nachricht:", err));
-  }, 3600000); // 1 Stunde
+    webpush.sendNotification(subscription, delayedPayload).catch(err => {
+      console.error("Fehler bei späterer Nachricht:", err);
+    });
+  }, 3600000);
 
   res.status(201).json({ message: "Benachrichtigungen geplant." });
 });
@@ -77,4 +71,3 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`✅ Server läuft auf Port ${PORT}`);
 });
-
