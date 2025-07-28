@@ -7,7 +7,6 @@
     <title>Klassisches Reaktionsspiel</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="apple-touch-icon" href="apple-touch-icon.png" />
-
     <style>
       html,
       body {
@@ -15,7 +14,7 @@
         padding: 0;
         height: 100%;
         font-family: sans-serif;
-        -webkit-user-select: none; /* Für Safari & iOS */
+        -webkit-user-select: none;
         user-select: none;
         text-align: center;
         cursor: pointer;
@@ -26,7 +25,7 @@
         flex-direction: column;
         justify-content: center;
         align-items: center;
-        background-color: #b80000; /* Startfarbe */
+        background-color: #b80000;
         color: white;
         padding: 1rem;
       }
@@ -106,7 +105,7 @@
         highscoreDisplay.innerText = `Bester Versuch: ${bestTimeSeconds} Sekunden`;
       }
 
-      // Dark Mode erkennen und setzen
+      // Dark Mode erkennen
       function setDarkMode() {
         if (
           window.matchMedia &&
@@ -133,16 +132,11 @@
         restartButton.style.display = "none";
 
         startTimer();
-        firstStart = false; // Nur einmaliger Startbildschirm
+        firstStart = false;
       }
 
-      // Timer bis grün wird
       function startTimer() {
-        const min = 3;
-        const max = 6;
-        const delay =
-          (Math.floor(Math.random() * (max - min + 1)) + min) * 1000;
-
+        const delay = (Math.floor(Math.random() * 4) + 3) * 1000;
         timeoutID = setTimeout(() => {
           background.style.backgroundColor = "green";
           beepSound.play();
@@ -152,28 +146,24 @@
         }, delay);
       }
 
-      // Klick auswerten
       function handleClick() {
         if (!gameStarted) {
           startGame();
           return;
         }
 
-        if (clicked) return; // mehrfaches Klicken ignorieren
+        if (clicked) return;
 
         clicked = true;
 
         if (!isGreen) {
-          // Zu früh geklickt
-          message.innerText =
-            "Zu früh! Neu starten, um es erneut zu versuchen.";
+          message.innerText = "Zu früh! Neu starten, um es erneut zu versuchen.";
           background.style.backgroundColor = "gray";
           clearTimeout(timeoutID);
           restartButton.style.display = "inline-block";
           return;
         }
 
-        // Reaktionszeit messen
         const reactionTime = Date.now() - startTime;
         const reactionInSeconds = (reactionTime / 1000).toFixed(3);
         message.innerText = `Reaktionszeit: ${reactionInSeconds} Sekunden`;
@@ -188,7 +178,6 @@
         restartButton.style.display = "inline-block";
       }
 
-      // Spiel neu starten
       function restartGame(event) {
         event.stopPropagation();
         clearTimeout(timeoutID);
@@ -199,7 +188,6 @@
         restartButton.style.display = "none";
         background.style.backgroundColor = "#b80000";
 
-        // Ladebildschirm überspringen ab dem zweiten Start
         if (!firstStart) {
           message.innerText = "Warte auf Grün...";
           startGame();
@@ -208,11 +196,37 @@
         }
       }
 
-      // Eventlistener setzen
       window.onload = () => {
         document.addEventListener("click", handleClick);
         restartButton.addEventListener("click", restartGame);
       };
+
+      // 🔔 Push & Service Worker
+      if ("serviceWorker" in navigator && "PushManager" in window) {
+        window.addEventListener("load", async () => {
+          try {
+            const registration = await navigator.serviceWorker.register("service-worker.js");
+
+            const subscription = await registration.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey:
+                "BOxnFFyTXl1SPNdGicE-mr66IbGzWhylvOHA-xuxP4VaKdC-f12SS_N25YqUtfKY2N_nxxCyYUtdhRvNdfIwwls",
+            });
+
+            await fetch("https://reaktionsspiel-backend.onrender.com/subscribe", {
+              method: "POST",
+              body: JSON.stringify(subscription),
+              headers: {
+                "Content-Type": "application/json",
+              },
+            });
+
+            console.log("✅ Push-Abo erfolgreich gesendet.");
+          } catch (err) {
+            console.error("❌ Fehler bei Push-Abo:", err);
+          }
+        });
+      }
     </script>
   </body>
 </html>
